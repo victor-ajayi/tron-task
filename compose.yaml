@@ -1,0 +1,51 @@
+services:
+  server:
+    build:
+      context: .
+    ports:
+      - 8000:8000
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    # volumes:
+      # - .:/app/
+    develop:
+      # Create a `watch` configuration to update the appl
+      # https://docs.docker.com/compose/file-watch/#compose-watch-versus-bind-mounts
+      watch:
+        # Sync the working directory with the `/app` directory in the container
+        - action: sync
+          path: .
+          target: /app
+          # Exclude the project virtual environment — it could be for a
+          # different platform in the container
+          ignore:
+            - .venv/
+
+        # Rebuild the image on changes to the `pyproject.toml`
+        - action: rebuild
+          path: ./pyproject.toml
+  db:
+    image: postgres
+    restart: always
+    user: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    # expose:
+      # - "5432"
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  db-data:
